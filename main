@@ -1,0 +1,139 @@
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.util.PriorityQueue;
+import java.util.TreeMap;
+
+public class Huffman{
+
+    static PriorityQueue<Node> nodes = new PriorityQueue<>((o1, o2) -> (o1.value < o2.value) ? -1 : 1);
+    static TreeMap<Character, String> codes = new TreeMap<>();
+
+    static int ASCII[] = new int[128];
+
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("\n-- Texte à encoder -- \n\n" + StrText());
+        calculateCharFrequence(nodes);
+        buildTree(nodes);
+        generateCodes(nodes.peek(), "");
+        printCodes();
+        System.out.println("\n-- Texte encodé --\n");
+        encodeText();
+    }
+
+    public static String StrText() throws Exception {
+        FileReader file = new FileReader("src/example1.txt");
+        BufferedReader reader = new BufferedReader(file);
+        String text = "";
+        String line = reader.readLine();
+        while (line != null) {
+            text += line;
+            line = reader.readLine();
+        }
+        return text;
+    }
+
+    private static void calculateCharFrequence(PriorityQueue<Node> vector) throws Exception {
+
+        System.out.println("\n-- Fréquences des caractères --\n");
+
+        System.out.print(StrText().length()+"\n");
+
+        for (int i = 0; i < StrText().length(); i++)
+            ASCII[StrText().charAt(i)]++;
+
+        for (int i = 0; i < ASCII.length; i++)
+            if (ASCII[i] > 0) {
+                vector.add(new Node(ASCII[i], ((char) i) + ""));
+                System.out.println(((char) i) + " : " + ASCII[i]);
+            }
+    }
+
+    private static void buildTree(PriorityQueue<Node> vector) {
+        while (vector.size() > 1)
+            vector.add(new Node(vector.poll(), vector.poll()));
+    }
+
+    private static void generateCodes(Node node, String s) {
+        if (node != null) {
+            if (node.right != null)
+                generateCodes(node.right, s + "1");
+
+            if (node.left != null)
+                generateCodes(node.left, s + "0");
+
+            if (node.left == null && node.right == null)
+                codes.put(node.character.charAt(0), s);
+        }
+    }
+
+    private static void printCodes() {
+        System.out.println("--- Printing Codes ---");
+        codes.forEach((k, v) -> System.out.println(k + " : " + v));
+    }
+
+    private static void encodeText() throws Exception {
+        /**
+         * Concatène dans l'ordre les codes ascii des lettres du texte à encoder
+         * Permet d'afficher cette liste nommée encoded
+         */
+        String encodedBin = "";
+        for (int i = 0; i < StrText().length(); i++)
+            encodedBin += codes.get(StrText().charAt(i));
+
+        System.out.println(encodedBin + " - encodedBin, de taille : " + encodedBin.length());
+        System.out.println(8 - encodedBin.length()%8 + " - Nombre de zéro à ajouter à encodedBin pour le normer");
+
+        while(encodedBin.length()%8!=0){
+            encodedBin+=0;
+        }
+
+        System.out.println(encodedBin + " - encodedBin normé");
+
+
+        String encodedStr = "", oct = "";
+        for (int j = 0; j < encodedBin.length(); j++){
+            oct += encodedBin.charAt(j);
+            if (oct.length()==8) {
+                System.out.println(oct);
+                System.out.println((char)Integer.parseInt(oct,2));
+
+                encodedStr += (char)Integer.parseInt(oct,2);
+                System.out.println(encodedStr);
+
+                oct = "";
+            }
+        }
+
+        System.out.println("\n" +encodedStr);
+
+    }
+}
+
+
+
+class Node {
+    Node left;
+    Node right;
+    double value;
+    String character;
+
+    public Node(double value, String character) {
+        this.value = value;
+        this.character = character;
+        left = null;
+        right = null;
+    }
+
+    public Node(Node left, Node right) {
+        this.value = left.value + right.value;
+        character = left.character + right.character;
+        if (left.value < right.value) {
+            this.right = right;
+            this.left = left;
+        } else {
+            this.right = left;
+            this.left = right;
+        }
+    }
+}
