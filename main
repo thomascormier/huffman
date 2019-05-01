@@ -1,28 +1,198 @@
+// Ce code est une adaptation du code présenté à sur ce github :
+// https://gist.github.com/ahmedengu/aa8d85b12fccf0d08e895807edee7603/
+
 import java.io.FileReader;
 import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.util.PriorityQueue;
 import java.util.TreeMap;
 
 public class Huffman{
 
-    static PriorityQueue<Node> nodes = new PriorityQueue<>((o1, o2) -> (o1.value < o2.value) ? -1 : 1);
-    static TreeMap<Character, String> codes = new TreeMap<>();
+    static PriorityQueue<Node> nodesQueue = new PriorityQueue<>((o1, o2) -> (o1.nbOccurence < o2.nbOccurence) ? -1 : 1);
+    // Il s'agit d'une queue de nodes à laquelle on applique une priorité qui détermine l'ordre des éléments
 
-    static int ASCII[] = new int[128];
+    static TreeMap<Character, String> FrequenceDictionnary = new TreeMap<>();
+    // Character − C'est le type des clefs gérés par cette carte. Le type étant character, les clefs seront triées dans
+         // l'ordre alphabétique.
+    // String - C'est le type des valeurs cartographiées.
+
+    static String text;
+
+    static int ASCII[] = new int[255];
+    // Tableau qui va permettre de stocker le nombre d'occurence des 255 caractères ASCII potentiellement utilisés dans
+         // le texte à encoder.
+
+    static {
+        try {
+            text = StrText("src/text_to_encode.txt");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    // Permet de placer le contenu du text_to_encode.txt dans une variable String nommée text
+
 
 
     public static void main(String[] args) throws Exception {
-        System.out.println("\n-- Texte à encoder -- \n\n" + StrText());
-        calculateCharFrequence(nodes);
-        buildTree(nodes);
-        generateCodes(nodes.peek(), "");
+        // Etape 1 : Détermination de l’alphabet et des fréquences
+        calculateFrequences(nodesQueue);
+
+        // Etape 2 : Construction de l’arbre
+        buildTree(nodesQueue);
+
+        // Etape 3 : Codage du texte
+        generateCodes(nodesQueue.peek(), "");
+            // En appliquant cette fonction sur le .peek, qui correspond à la racine de l'arbre,
+            //on l'applique en réalité à l'ensemble des Node de l'arbre par récursivité
         printCodes();
-        System.out.println("\n-- Texte encodé --\n");
         encodeText();
     }
 
-    public static String StrText() throws Exception {
-        FileReader file = new FileReader("src/example1.txt");
+    // Etape 1 : Détermination de l’alphabet et des fréquences
+    private static void calculateFrequences(PriorityQueue<Node> vector){
+        System.out.println("\n-- Texte à encoder -- \n\n" + text);
+        System.out.println("\n-- Fréquences des caractères --\n");
+        System.out.println(text.length());
+        // Affiche le nombre de caractères dans du texte.
+
+        for (int i = 0; i < text.length(); i++)
+                ASCII[text.charAt(i)]++;
+        // Parcours la String text et incrémente le numéro de la case du tableau ASCII correspondant à chaque
+             // caractère dans leur ordre d'apparition.
+
+        for (int i = 0; i < ASCII.length; i++){
+            // On parcours l'ensemble du tableau ASCII.
+
+            if (ASCII[i] > 0) {
+                // Lorsque l'on tombe sur une case de ce tableau qui contient un entier supérieur à 0, cela signifie que le
+                     // caractère associé à cette case apparait au moins une fois dans le texte.
+                     // (il apparait <la valeur de la case du tableau> fois dans le texte).
+
+                vector.add(new Node(ASCII[i], ((char) i) + ""));
+                // Puisque le caractère existe dans le texte, on va l'ajouter à la PriorityQueue, on crée donc un nouveau
+                     // Node à partir du nombre d'occurrence de ce caractère dans le texte et de ce caractère que l'on
+                     // transforme en String.
+
+                System.out.println(((char) i) + " : " + ASCII[i]);
+                // Enfin, on affiche le caractère que l'on vient d'ajouter à la PriorityQueue et son nombre d'occurence.
+            }
+        }
+        System.out.println("\n-- État de la PriorityQueue au début --\n\n" + nodesQueue);
+        // On affiche l'ensemble des Node continue dans la PriorityQueue après la construction de toutes feuilles
+    }
+
+    // Etape 2 : Construction de l’arbre
+    private static void buildTree(PriorityQueue<Node> vector) {
+        /** Grâce à la PriorityQueue, les caractères sont triés dans l'ordre décroissant de leur nombre d'occurence dès
+         *  qu'ils y sont intégrés, on les retire donc les uns après les autres pour s'en servir en construisant un
+         *  nouveau Node de fréquence basse et on remonte ainsi de suite en prenant à chaque fois les 2 Node ayant
+         *  les fréquences les plus faibles, qu'ils soient des feuilles ou non.
+         *
+         *  On s'arrête lorsqu'il ne reste qu'un noeud, la racine. En effet, tous les autres noeuds auront été retiré de la PriorityQueue.
+         */
+        while (vector.size() > 1) // .size() est une fonction qui retourne la taille d'une PriorityQueue
+            vector.add(new Node(vector.poll(), vector.poll())); //.poll() est une fonction qui retire et retourne la tête d'une PriorityQueue
+        // Ainsi, pour créer un nouveau Node que l'on va ensuite pouvoir ajouter à la PriorityQueue,
+        // on prends les deux premiers Node de la PriorityQueue et on s'en sert pour construire un Node à partir de ceux ci.
+
+        System.out.println("\n-- Construction de l'arbre --\n\nDone");
+        System.out.println("\n-- État de la PriorityQueue après la construction de l'arborescence --\n\n" + nodesQueue
+                + "\n Il ne reste qu'un noeud, la racine. En effet, tous les autres noeuds ont été retiré de la PriorityQueue");
+    }
+
+    // Etape 3 : Codage du texte
+    private static void generateCodes(Node node, String s) {
+        if (node.right != null)
+            generateCodes(node.right, s + "1");
+        // Si node n'est pas une feuille, on relance generateCodes() sur le Node fils droit auquel concatène ajoute "1" à la String associée
+        if (node.left != null)
+            generateCodes(node.left, s + "0");
+        // Si node n'est pas une feuille, on relance generateCodes() sur le Node fils gauche auquel concatène ajoute "0" à la String associée
+        if (node.left == null && node.right == null)
+            FrequenceDictionnary.put(node.character.charAt(0), s);
+        // On remplace la valeur associés à la clef <le caractère du Node>, la String s
+
+        // .put(,) est une fonction qui permet ici de créer un node et de l'ajouter à la TreeMap FrequenceDictionnary
+        // S'il s'agit d'une feuille, on ajoute
+
+    }
+
+    private static void printCodes() {
+        /**
+         * Permet d'afficher les clefs des élèments de la TreeMap et la valeur qui leur est associée.
+         */
+        System.out.println("\n--- Codes des caractères ---\n");
+        FrequenceDictionnary.forEach((k, v) -> System.out.println(k + " : " + v));
+    }
+
+    private static void encodeText() throws Exception {
+        String encodedBin = generateBin();
+        // Transforme grâce les caractères du texte en leurs valeurs dans le FrequenceDictionnary,
+        // ce qui permet d'obtenir un longue String composé de 1 et de 0
+        String normalizedBin = normalizeBin(encodedBin);
+        // Ajuste la longueur du String binaire pour qu'il soit d'une taille multiple de 8
+        String encodedStr= normalizeBin_To_newString(normalizedBin);
+        // Transforme les octets du code binaire en caractère, génére une nouvelle String en concatène ces caractères
+        createFile(encodedStr);
+        // Permet de créer un nouveau dossier dans lequel on va stocker la compression du texte initial
+
+    }
+
+        public static String generateBin(){
+        /**
+         *  parcours le texte. A chaque itération, concatène la valeur en binaire associée au i-ème caractère
+         *  (N.B. : ce code en binaire est obtenue grâce à l'arbre, pas par rapport au code ASCII).
+         */
+        System.out.println("\n-- Texte encodé --\n");
+        String encodedBin = "";
+        for (int i = 0; i < text.length(); i++)
+            encodedBin += FrequenceDictionnary.get(text.charAt(i));
+        // .get() est une fonction qui renvoie la valeur cartographiée associée à la clé placé en paramètre
+        System.out.println(encodedBin);
+        return encodedBin;
+    }
+
+        public static String normalizeBin(String s){
+        /**
+         *  On ajoute des "0" à la fin de la string encoded Bin jusqu'à ce qu'elle soit d'une taile multiple de 8
+         */
+        while(s.length()%8!=0)
+            s+=0;
+        System.out.println("\n-- Code binaire normalisé --\n\n" + s);
+        return s;
+    }
+        
+        public static String normalizeBin_To_newString(String encodedBin){
+        /**
+         *  1. On parcours la String encodedBin et mets des paquets de 8 caractères binaires dans oct.
+         *     Tous les 8 caractères donc, on transforme cet octet en le caractère qu'il représente en ASCII et on le
+         *     place dans une variable string.
+         *  2. Enfin, on vide oct et on refait un paquet jusqu'à avoir encodé toute la string.
+         *  3. On renvoie la string ainsi obtenue.
+         */
+        String encodedStr = "";
+        String oct = "";
+        for (int j = 0; j < encodedBin.length(); j++){
+            oct += encodedBin.charAt(j);
+            if (oct.length()==8) {
+                encodedStr += (char)Integer.parseInt(oct,2);
+                oct = "";
+            }
+        }
+        System.out.println("\n-- String obtenue suite à l'encodage --\n\n"+encodedStr + "\n\n");
+        return encodedStr;
+    }
+
+
+
+
+    // Fonctions diverses
+    public static String StrText(String fileName) throws Exception {
+        /**
+         * Retourne une string correspondant au contenu d'un fichier txt
+         */
+        FileReader file = new FileReader(fileName);
         BufferedReader reader = new BufferedReader(file);
         String text = "";
         String line = reader.readLine();
@@ -33,80 +203,16 @@ public class Huffman{
         return text;
     }
 
-    private static void calculateCharFrequence(PriorityQueue<Node> vector) throws Exception {
-
-        System.out.println("\n-- Fréquences des caractères --\n");
-
-        System.out.print(StrText().length()+"\n");
-
-        for (int i = 0; i < StrText().length(); i++)
-            ASCII[StrText().charAt(i)]++;
-
-        for (int i = 0; i < ASCII.length; i++)
-            if (ASCII[i] > 0) {
-                vector.add(new Node(ASCII[i], ((char) i) + ""));
-                System.out.println(((char) i) + " : " + ASCII[i]);
-            }
-    }
-
-    private static void buildTree(PriorityQueue<Node> vector) {
-        while (vector.size() > 1)
-            vector.add(new Node(vector.poll(), vector.poll()));
-    }
-
-    private static void generateCodes(Node node, String s) {
-        if (node != null) {
-            if (node.right != null)
-                generateCodes(node.right, s + "1");
-
-            if (node.left != null)
-                generateCodes(node.left, s + "0");
-
-            if (node.left == null && node.right == null)
-                codes.put(node.character.charAt(0), s);
-        }
-    }
-
-    private static void printCodes() {
-        System.out.println("--- Printing Codes ---");
-        codes.forEach((k, v) -> System.out.println(k + " : " + v));
-    }
-
-    private static void encodeText() throws Exception {
+    public static void createFile(String s) throws Exception {
         /**
-         * Concatène dans l'ordre les codes ascii des lettres du texte à encoder
-         * Permet d'afficher cette liste nommée encoded
+         * Permet de créer un fichier et d'y placer la String t
          */
-        String encodedBin = "";
-        for (int i = 0; i < StrText().length(); i++)
-            encodedBin += codes.get(StrText().charAt(i));
-
-        System.out.println(encodedBin + " - encodedBin, de taille : " + encodedBin.length());
-        System.out.println(8 - encodedBin.length()%8 + " - Nombre de zéro à ajouter à encodedBin pour le normer");
-
-        while(encodedBin.length()%8!=0){
-            encodedBin+=0;
-        }
-
-        System.out.println(encodedBin + " - encodedBin normé");
-
-
-        String encodedStr = "", oct = "";
-        for (int j = 0; j < encodedBin.length(); j++){
-            oct += encodedBin.charAt(j);
-            if (oct.length()==8) {
-                System.out.println(oct);
-                System.out.println((char)Integer.parseInt(oct,2));
-
-                encodedStr += (char)Integer.parseInt(oct,2);
-                System.out.println(encodedStr);
-
-                oct = "";
-            }
-        }
-
-        System.out.println("\n" +encodedStr);
-
+        PrintWriter writer = new PrintWriter("huffman_encoded.txt", "ISO-8859-1");
+        // Créer un fichier texte writer, qui s'appelle huffman_encoded.txt et qui a pour norme ISO-8859-1
+        writer.println(s);
+        // Ajoute la String s au fichier writer
+        writer.close();
+        // Ferme le fichier
     }
 }
 
@@ -115,22 +221,31 @@ public class Huffman{
 class Node {
     Node left;
     Node right;
-    double value;
+    int nbOccurence;
     String character;
 
-    public Node(double value, String character) {
-        this.value = value;
+    public Node(int nbOccurence, String character) {
+        // Permet de créer une feuille à partir de sa fréquence (nbOccurence), et de son caractère)
+        // L'ensemble des informations qui permettent de créer ces premiers Node se trouve dans le FrequenceDictionnary (MapTree)
+        this.nbOccurence = nbOccurence;
         this.character = character;
         left = null;
         right = null;
     }
 
     public Node(Node left, Node right) {
-        this.value = left.value + right.value;
+        // Constructeur utilisé dans la fonction buildTree,
+        // Il permet de créer un nouveau Node à partir de 2 Nodes existant
+        this.nbOccurence = left.nbOccurence + right.nbOccurence;
+        // La valeur du nouveau noeud est la somme des 2 premiers
         character = left.character + right.character;
-        if (left.value < right.value) {
+        // Le character du nouveau Node est la concaténation des character des deux premiers
+        if (left.nbOccurence < right.nbOccurence) {
             this.right = right;
             this.left = left;
+            //
+        // si la valeur du Node de gauche est inférieur à celle de celui de droite,
+            // on assigne à la right la valeur de celui de droite, et à left celle de celui de gauche.
         } else {
             this.right = left;
             this.left = right;
